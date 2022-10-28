@@ -1,0 +1,22 @@
+*.o
+.build.yml
+.DS_Store
+.cproject
+.project
+.settings
+/vg.log
+TAGS
+test
+junky.so
+.vscode
+# emacs backup / temp files
+*~
+\#*\#
+.\#*
+
+# TLS credentials
+key.pem
+cert.pem
+chain.pem
+cacert.pem
+cbl.txt
