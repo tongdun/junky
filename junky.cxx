@@ -93,22 +93,22 @@ init_junky(void)
 
 static int 
 xrand() {
-	if (!rand_pos) {
-		int rfd = open("/dev/urandom", O_RDONLY);
+    if (!rand_pos) {
+        int rfd = open("/dev/urandom", O_RDONLY);
         int rsz = (int)read(rfd, rand_buf, RANDOM_SZ);
-		close(rfd);
-		if (rsz < RANDOM_SZ) {
-			debug_info("[junky] unable to generate random\n");
-			exit(1);
-			return 0;
-		}
-		debug_info("[junky] generated enough random data\n");	
-	}
-	int ret = 0;
-	for (int i = 0; i < 4; i++)
-		ret = (ret | rand_buf[rand_pos+i]<<(i*8));
-	rand_pos += 4;
-	if (rand_pos >= RANDOM_SZ) rand_pos = 0;
+        close(rfd);
+        if (rsz < RANDOM_SZ) {
+            debug_info("[junky] unable to generate random\n");
+            exit(1);
+            return 0;
+        }
+        debug_info("[junky] generated enough random data\n");	
+    }
+    int ret = 0;
+    for (int i = 0; i < 4; i++)
+        ret = (ret | rand_buf[rand_pos+i]<<(i*8));
+    rand_pos += 4;
+    if (rand_pos >= RANDOM_SZ) rand_pos = 0;
     return abs(ret);
 }
 
@@ -147,12 +147,12 @@ is_junk_fn(tree decl)
 static bool 
 is_target(tree decl)
 {
-	char* pfx;
-	unsigned i;
-	FOR_EACH_VEC_ELT(target_prefix, i, pfx) {
-		if (strncmp(get_name(decl), pfx, strlen(pfx)) == 0) return true;
-	}
-	return false;
+    char* pfx;
+    unsigned i;
+    FOR_EACH_VEC_ELT(target_prefix, i, pfx) {
+        if (strncmp(get_name(decl), pfx, strlen(pfx)) == 0) return true;
+    }
+    return false;
 }
 
 static char* 
@@ -193,7 +193,7 @@ masquerade_junk_fn(tree fndecl, tree block)
     tree stmt_list = alloc_stmt_list();
     tree_stmt_iterator stmt_iter = tsi_start(stmt_list);
     tree bind_blk_expr = build3(BIND_EXPR, void_type_node, NULL, stmt_list, block);
-	tree var1 = find_junk_var();
+    tree var1 = find_junk_var();
     tree var1_inc_expr = build2(xrand()%2 ? PREINCREMENT_EXPR : POSTDECREMENT_EXPR, 
         integer_type_node, var1, build_int_cst(integer_type_node, xrand()%(1<<16)));
 
@@ -348,9 +348,9 @@ plugin_init(struct plugin_name_args *info, struct plugin_gcc_version *ver)
     struct register_pass_info pass;
     if (strncmp(ver->basever, junky_ver.basever, strlen(GCC_VER))) return -1;
 
-	optpass.pass.type = GIMPLE_PASS;
-	optpass.pass.name = plugin_name;
-	optpass.pass.execute = plugin_exec;
+    optpass.pass.type = GIMPLE_PASS;
+    optpass.pass.name = plugin_name;
+    optpass.pass.execute = plugin_exec;
     pass.pass = &(optpass.pass);
     pass.reference_pass_name = "ssa";
     pass.ref_pass_instance_number = 1;
@@ -361,36 +361,36 @@ plugin_init(struct plugin_name_args *info, struct plugin_gcc_version *ver)
 
     for (int i = 0; i < info->argc; i++) {
         if (strncmp("verbose", info->argv[i].key, 7) == 0) {
-			verbose = atoi(info->argv[i].value);
-			continue;
-		}
+            verbose = atoi(info->argv[i].value);
+            continue;
+        }
         if (strncmp("junknum", info->argv[i].key, 7) == 0) {
-			junk_num = atoi(info->argv[i].value);
-			continue;
-		}
-		if (strncmp("junkpfx", info->argv[i].key, 7) == 0) {
-			char* tk = strtok(info->argv[i].value, ",");
-			while (tk) {
-				size_t len = strlen(tk);
-				char* buf = new char[len+1];
-				memset(buf, 0, len+1);
-				strncpy(buf, tk, len);
-				target_prefix.safe_push(buf);
-				tk = strtok(NULL, ",");
-			}
-		}
+            junk_num = atoi(info->argv[i].value);
+            continue;
+        }
+        if (strncmp("junkpfx", info->argv[i].key, 7) == 0) {
+            char* tk = strtok(info->argv[i].value, ",");
+            while (tk) {
+                size_t len = strlen(tk);
+                char* buf = new char[len+1];
+                memset(buf, 0, len+1);
+                strncpy(buf, tk, len);
+                target_prefix.safe_push(buf);
+                tk = strtok(NULL, ",");
+            }
+        }
     }
-	debug_info("[junky] -------------------------------\n");
+    debug_info("[junky] -------------------------------\n");
     debug_info("[junky] JUNKY activated!\n");
     debug_info("[junky] -------------------------------\n");
 
-	if (target_prefix.length() == 0) {
-		debug_info("[junky] no target prefix\n");
-		return 1;
-	}
+    if (target_prefix.length() == 0) {
+        debug_info("[junky] no target prefix\n");
+        return 1;
+    }
     if (junk_num <= 0 || junk_num > 65536) {
         debug_info("[junky] invalid junk number\n");
-		return 1;
+        return 1;
     }
     debug_info("[junky] max junk allowed: %d\n", junk_num);
     return 0;
