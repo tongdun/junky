@@ -33,6 +33,7 @@ int plugin_is_GPL_compatible = 1;
 
 static gimple_opt_pass optpass;
 static uint8_t rand_buf[RANDOM_SZ];
+static int verbose = 1;
 static int junk_num;
 static int rand_pos = 0;
 static struct plugin_info junky_info = {
@@ -60,10 +61,22 @@ vec<tree> junk_fns;
 vec<tree> junk_vars;
 vec<char*> target_prefix;
 
+void 
+debug_info(const char *fmt, ...) 
+{
+    if (!verbose) {
+        return;
+    }
+    va_list args;
+    va_start(args, fmt);
+    vprintf(fmt, args);
+    va_end(args);
+}
+
 static void 
 init_junky(void)
 {
-    printf("[junky] initializing _______\n");
+    debug_info("[junky] initializing _______\n");
     const int globals = 10 + xrand()%10;
     for (int i = 0; i < globals; i++) {
         char buf[64];
@@ -85,11 +98,11 @@ xrand() {
         int rsz = (int)read(rfd, rand_buf, RANDOM_SZ);
 		close(rfd);
 		if (rsz < RANDOM_SZ) {
-			printf("[junky] unable to generate random\n");
+			debug_info("[junky] unable to generate random\n");
 			exit(1);
 			return 0;
 		}
-		printf("[junky] generated enough random data\n");	
+		debug_info("[junky] generated enough random data\n");	
 	}
 	int ret = 0;
 	for (int i = 0; i < 4; i++)
@@ -211,7 +224,7 @@ make_junk_fn(void)
 {
     char fnname[16] = {0};
     tree decl, resdecl, initial, typelst;
-    sprintf(fnname, "sub_%X", xrand() % 10000);
+    sprintf(fnname, "sub_%X", xrand());
     typelst = build_function_type_list(void_type_node, NULL_TREE);
     decl = build_fn_decl(fnname, typelst);
     SET_DECL_ASSEMBLER_NAME(decl, get_identifier(fnname));
@@ -238,7 +251,7 @@ make_junk_fn(void)
     cgraph_add_new_function(decl, false);
 
     junk_fns.safe_push(decl);
-    printf("[junky] made junk fn: %s\n", fnname);
+    debug_info("[junky] made junk fn: %s\n", fnname);
     return decl;
 }
 
@@ -303,15 +316,15 @@ plugin_exec(void)
     }
     if (!is_target(cfun->decl)) return 0;
     if (is_junk_fn(cfun->decl)) {
-        printf("[junky] weird! we got a junk fn, which should never happen.\n");
+        debug_info("[junky] weird! we got a junk fn, which should never happen.\n");
     }
 
     FOR_EACH_BB_FN(bb, cfun) {
         if (!junk_num) {
-            printf("[junky] max junk reached !\n");
+            debug_info("[junky] max junk reached !\n");
             return 0;
         }
-        printf("[junky] junking: %s, blk: %d, remain: %d\n",  get_name(cfun->decl), seq++, junk_num);
+        debug_info("[junky] junking: %s, blk: %d, remain: %d\n",  get_name(cfun->decl), seq++, junk_num);
         for (gimple_stmt_iterator gsi = gsi_start_bb(bb); !gsi_end_p(gsi)&&(junk_num>0); gsi_next(&gsi)) 
         {
             inject_junk_stmt(&gsi, 2, JUNK_NEW_FN, JUNK_JMP_FN);
@@ -335,9 +348,6 @@ plugin_init(struct plugin_name_args *info, struct plugin_gcc_version *ver)
     struct register_pass_info pass;
     if (strncmp(ver->basever, junky_ver.basever, strlen(GCC_VER))) return -1;
 
-    printf("[junky] -------------------------------\n");
-    printf("[junky] JUNKY activated!\n");
-    printf("[junky] -------------------------------\n");
 	optpass.pass.type = GIMPLE_PASS;
 	optpass.pass.name = plugin_name;
 	optpass.pass.execute = plugin_exec;
@@ -350,12 +360,15 @@ plugin_init(struct plugin_name_args *info, struct plugin_gcc_version *ver)
     register_callback(plugin_name, PLUGIN_INFO, NULL, &junky_info);
 
     for (int i = 0; i < info->argc; i++) {
+        if (strncmp("verbose", info->argv[i].key, 7) == 0) {
+			verbose = atoi(info->argv[i].value);
+			continue;
+		}
         if (strncmp("junknum", info->argv[i].key, 7) == 0) {
 			junk_num = atoi(info->argv[i].value);
 			continue;
 		}
 		if (strncmp("junkpfx", info->argv[i].key, 7) == 0) {
-			printf("[junky] user specified target prefix:%s\n", info->argv[i].value);
 			char* tk = strtok(info->argv[i].value, ",");
 			while (tk) {
 				size_t len = strlen(tk);
@@ -365,19 +378,21 @@ plugin_init(struct plugin_name_args *info, struct plugin_gcc_version *ver)
 				target_prefix.safe_push(buf);
 				tk = strtok(NULL, ",");
 			}
-			
 		}
     }
-	
+	debug_info("[junky] -------------------------------\n");
+    debug_info("[junky] JUNKY activated!\n");
+    debug_info("[junky] -------------------------------\n");
+
 	if (target_prefix.length() == 0) {
-		printf("[junky] no target prefix\n");
+		debug_info("[junky] no target prefix\n");
 		return 1;
 	}
     if (junk_num <= 0 || junk_num > 65536) {
-        printf("[junky] invalid junk number\n");
+        debug_info("[junky] invalid junk number\n");
 		return 1;
     }
-    printf("[junky] max junk allowed: %d\n", junk_num);
+    debug_info("[junky] max junk allowed: %d\n", junk_num);
     return 0;
 }
 

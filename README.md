@@ -3,19 +3,19 @@
 
 ## Junky plugin for GCC
 
-```
+
 ----------------------------------------------------------------------------
  * Junky plugin For GCC
- *
+
  * Inject random junk instructions during 'GIMPLE' compilation pass
  * Full of black magic so do not modify unless necessary
  * ABSOLUTELY NO WARRANTY so use it at your own risk
 
  * This plugin supports GCC >= 4.8. Higher version might work as well.
- * 
+
  * xxxzzz@2022-10
 ----------------------------------------------------------------------------
-```
+
 
 ## Junky GCC插件
 
@@ -27,9 +27,9 @@
 
 适用于普通程序和动态库，支持x86-64和AAarch64架构
 
-## Junky背景
+## 背景
 
-当前Linux平台并没有可靠的相关工具，Github里的类似项目基本处于废弃或不可用状态
+当前Linux平台并没有一个可靠的类似工具，Github里的相关项目基本处于废弃或不可用状态
 
 此外还有极少数商用软件可以实现此功能（例如CodeMorph C/C++ Code Obfuscator）
 
@@ -48,44 +48,61 @@
 
 ## 使用方式
 
-编译时在命令行或Makefile中加入下列参数：
+编译时在命令行或Makefile中加入下列参数（注意不要换行）：
 
-    -fplugin=<lib-file-path>/junky-x64.so -fplugin-arg-junky-junknum=1000
+    -fplugin='LIB_PATH/junky-x64.so' 
+    -fplugin-arg-junky-junknum=1000
     -fplugin-arg-junky-junkpfx='fn_test_1,fn_test_2...'
+    -fplugin-arg-junky-verbose=1
 
-其中，
+其中：
 
-```junky-junknum```代表最大可生成的干扰指令数量
+* ```junknum``` 最大可生成的干扰指令数量
 
-```junky-junkpfx```代表目标的函数列表（基于前缀匹配），逗号分隔
+* ```junkpfx``` 目标的函数列表（基于前缀匹配），逗号分隔
+
+* ```verbose``` 是否输出详细日志，默认开启，0表示关闭
+
+特别需要注意的是，对于经过本插件处理的源码模块**必须关闭**GCC优化，只能以```-O0```方式编译
 
 本仓库中自带的两个二进制文件基于GCC4.8版本构建，在更高版本GCC中可能能运行
 
 #### 简单测试
 
-本仓库自带了一个```test.c```的测试程序，执行```make test```来构建
+仓库自带了一个```test.c```的测试程序，执行```make test```来构建
 
 然后用户可通过```objdump```命令对生成的```test```文件进行反汇编来观察最终效果
 
 例如```objdump -d -Mintel test | less```
 
+此外我们使用该插件对Redis6.0进行构建，编译结果通过了其自带的64项测试
+
 ---
 
-## usage: 
+## usage
 
 1. put dynamic lib file into an accessible directory
 2. add the following gcc parameters in Makefile or command line
 
-    ```-fplugin=<lib-file-path>/junky.so -fplugin-arg-junky-junknum=1000\```
-    ```-fplugin-arg-junky-junkpfx='fn_test_1,fn_test_2...'```
+    -fplugin='LIB_PATH/junky.so' -fplugin-arg-junky-junknum=1000
+    -fplugin-arg-junky-junkpfx='fn_test_1,fn_test_2...'
+    -fplugin-arg-junky-verbose=1
 
 3. compile and run
 
-## plugin dev:
+* ```junknum``` controls how many junks to be injected
+* ```junkpfx``` target function name prefix list
+* ```verbose``` set to 0 to disable log output
 
-1. install essential dependency ```gcc-plugin-devel```
+## notice
+
+gcc optimization should be turned off for object which contains target functions
+
+## plugin dev
+
+1. install essential dependency: ```gcc-plugin-devel```
 2. make
 
-## reference:
+## reference
 
 You may find everything here -> https://gcc.gnu.org/onlinedocs/gcc-4.8.5/gccint/

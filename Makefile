@@ -2,7 +2,7 @@
 
 PLUGIN_SRC=junky.cxx
 PLUGIN=junky.so
-EXTRA_ARGS=-fplugin-arg-junky-junkpfx=main,fn_test -fplugin-arg-junky-junknum=100 
+EXTRA_ARGS=-fplugin-arg-junky-junkpfx=main,fn_test -fplugin-arg-junky-junknum=100 -fplugin-arg-junky-verbose=1
 CC=g++
 
 CCPLUGINS_DIR = $(shell $(CC) -print-file-name=plugin)
