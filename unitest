@@ -1,0 +1,55 @@
+#!/bin/sh
+
+if [[ ! -f 'test' ]]; then
+    echo 'make test first'
+    exit 1
+fi
+
+if [[ -z $(which objdump) ]]; then
+    echo 'install binutils first'
+    exit 1
+fi
+
+#run it and check output
+if [[ ! -z $(./test | grep WTF) ]]; then
+    echo 'test program failed! should never happen'
+    exit 1
+fi
+
+F='/tmp/test.dump'
+objdump -d -Mintel test > $F
+
+function assert {
+    if [ $1 != '0' ]; then
+        echo 'unittest failed'
+        exit 1
+    fi
+}
+
+# arg 1: regex
+# arg 2: target function name
+function check {
+    r=$(awk -v RS= "/^[[:xdigit:]]+ <$2>/" $F | grep -E $1)
+    if [[ -z "$r" ]]; then
+        echo 'unittest FAILED'
+        exit 1
+    fi
+}
+
+#make sure calling to junk function exists
+check 'call[[:space:]]{1,}[[:alnum:]]{1,}[[:space:]]{1,}<sub_' 'main'
+check 'call[[:space:]]{1,}[[:alnum:]]{1,}[[:space:]]{1,}<sub_' 'fn_test_1'
+
+#make sure math junk statements exists
+
+check 'imul[[:space:]]{1,}eax' 'main'
+check '[shl|sar][[:space:]]{1,}eax' 'fn_test_1'
+
+check '[shl|sar][[:space:]]{1,}eax' 'main'
+check '[shl|sar][[:space:]]{1,}eax' 'fn_test_1'
+
+check '[add|sub][[:space:]]{1,}eax' 'main'
+check '[add|sub][[:space:]]{1,}eax' 'fn_test_1'
+
+#all good
+echo 'unittest OK!'

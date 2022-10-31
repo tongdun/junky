@@ -13,16 +13,7 @@
  *****************************************************************************/
 
 #include <stdio.h>
-#include <gcc-plugin.h>
-#include <coretypes.h>
-#include <tree.h>
-#include <tree-pass.h>
-#include <tree-iterator.h>
-#include <tree-flow.h>
-#include <function.h>
-#include <cgraph.h>
-#include <gimple.h>
-#include <vec.h>
+#include "common.h"
 
 #define GCC_VER     "4.8"
 #define MAX_NEW_FN  10
@@ -38,7 +29,8 @@ static int junk_num;
 static int rand_pos = 0;
 static struct plugin_info junky_info = {
     .version = "1.0",
-    .help = "-fplugin-arg-junky-junknum=<num>"
+    .help = "-fplugin-arg-junky-verbose=<0|1>"
+            "-fplugin-arg-junky-junknum=<num>"
             "-fplugin-arg-junky-junkpfx=function_prefix1,function_prefix2..."
 };
 
@@ -53,7 +45,6 @@ typedef enum {
     JUNK_JMP_FN
 } junk_type_e;
 
-static int xrand();
 static tree make_junk_fn(void);
 static char* make_junk_var_name(char* buff, uint8_t minlen, uint8_t maxlen);
 
@@ -86,12 +77,13 @@ init_junky(void)
         DECL_NAME(t) = name;
         TREE_STATIC(t) = 1;
         DECL_ARTIFICIAL(t) = 1;
+        DECL_PRESERVE_P(t) = 1;
         change_decl_assembler_name(t, name);
         junk_vars.safe_push(t);
     }
 }
 
-static int 
+int 
 xrand() {
     if (!rand_pos) {
         int rfd = open("/dev/urandom", O_RDONLY);
@@ -105,8 +97,9 @@ xrand() {
         debug_info("[junky] generated enough random data\n");	
     }
     int ret = 0;
-    for (int i = 0; i < 4; i++)
+    for (int i = 0; i < 4; i++) {
         ret = (ret | rand_buf[rand_pos+i]<<(i*8));
+    }
     rand_pos += 4;
     if (rand_pos >= RANDOM_SZ) rand_pos = 0;
     return abs(ret);
@@ -122,7 +115,7 @@ find_junk_fn(void)
     return junk_fns[xrand() % len];
 }
 
-static tree 
+tree 
 find_junk_var(void)
 {
     unsigned len = junk_vars.length();
@@ -166,57 +159,6 @@ make_junk_var_name(char* buff, uint8_t minlen, uint8_t maxlen)
         else buff[i] = '0' + (xrand()%10);
     }
     return buff;
-}
-
-static gimple 
-build_junk_math_stmt(gimple_stmt_iterator *gsi, enum tree_code code)
-{
-    int rand_max = 1<<24;
-    if (code == LSHIFT_EXPR || code == RSHIFT_EXPR) {
-        rand_max = 1<<3;//don't shift too much
-    }
-
-    gimple g = gimple_build_assign_with_ops (code,
-        make_ssa_name(integer_type_node, NULL),
-        find_junk_var(),
-        build_int_cst(integer_type_node, xrand()%rand_max)
-    );
-    gsi_insert_before(gsi, g, GSI_NEW_STMT);
-    gsi_next(gsi);
-    return gimple_build_assign(find_junk_var(), gimple_assign_lhs(g));
-}
-
-// inject some stmts into the function to make it looks 'normal'
-static void 
-masquerade_junk_fn(tree fndecl, tree block)
-{
-    tree stmt_list = alloc_stmt_list();
-    tree_stmt_iterator stmt_iter = tsi_start(stmt_list);
-    tree bind_blk_expr = build3(BIND_EXPR, void_type_node, NULL, stmt_list, block);
-    tree var1 = find_junk_var();
-    tree var1_inc_expr = build2(xrand()%2 ? PREINCREMENT_EXPR : POSTDECREMENT_EXPR, 
-        integer_type_node, var1, build_int_cst(integer_type_node, xrand()%(1<<16)));
-
-    const enum tree_code ops[] = { MINUS_EXPR, PLUS_EXPR };
-    tree var2_op_expr = build2(ops[xrand()%2], 
-        integer_type_node, build_int_cst(integer_type_node, xrand()%(1<<24)), var1
-    );
-    if (xrand()%2) {
-        tree modify_var2 = build2(
-            MODIFY_EXPR, integer_type_node, find_junk_var(), var2_op_expr
-        );
-        tsi_link_after(&stmt_iter, modify_var2, TSI_CONTINUE_LINKING);
-    }
-
-    tree modify_global = build2(
-        MODIFY_EXPR, integer_type_node, find_junk_var(), var1_inc_expr
-    );
-    tsi_link_after(&stmt_iter, modify_global, TSI_CONTINUE_LINKING);
-    //tsi_next(&stmt_iter);
-    tree return_stmt = build1(RETURN_EXPR, void_type_node, NULL_TREE);
-    tsi_link_after(&stmt_iter, return_stmt, TSI_CONTINUE_LINKING);
-    DECL_SAVED_TREE(fndecl) = bind_blk_expr;
-    BLOCK_VARS(block) = BIND_EXPR_VARS(bind_blk_expr);
 }
 
 static tree 
